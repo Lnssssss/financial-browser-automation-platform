@@ -1,0 +1,177 @@
+// AgentFlow Studio — Prisma schema
+// Stage 3：迁移 enterprise/auth 三维 RBAC。
+// 源码对照：enterprise/auth/{models,enums}.py
+// 设计说明见 harness/notes/architecture/three-dim-rbac.md 与 ADR-002。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── 枚举 ───────────────────────────
+
+/// 部门内角色。源码 enums.py RoleType；用 Prisma enum 天然获得源码里的 CHECK 约束。
+enum Role {
+  SUPER_ADMIN
+  ORG_ADMIN
+  OPERATOR
+  APPROVER
+  VIEWER
+}
+
+/// 跨部门特殊权限类型。源码 enums.py SpecialPermissionType。
+enum SpecialPermissionType {
+  CROSS_ORG_READ
+  CROSS_ORG_APPROVE
+}
+
+// ─────────────────────── 多租户根：组织 ───────────────────────
+// 源码每张表都 FK 到 organizations.organization_id。三维 RBAC 挂在组织下：
+// 跨 org 直接 NONE、所有唯一约束都以 org 为前缀。Stage 2 最小版砍了它，此处补回。
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  departments      Department[]
+  businessLines    BusinessLine[]
+  users            User[]
+  specialPermissions SpecialPermission[]
+
+  @@map("organizations")
+}
+
+// ───────────────────── 维度一：部门（层级树）─────────────────────
+// 源码 DepartmentModel。parent_id 自引用做任意深度组织树；(org, code) 唯一。
+
+model Department {
+  id             String   @id @default(cuid())
+  organizationId String
+  parentId       String?  // NULL = 顶级部门（如“总行”）
+  name           String
+  code           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime? // 软删，对齐源码 deleted_at
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  // 自引用：一棵部门树。relation 名 "DeptHierarchy" 区分 parent/children 两端。
+  parent       Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children     Department[] @relation("DeptHierarchy")
+  userRoles    UserDepartmentRole[]
+
+  @@unique([organizationId, code], name: "uq_org_dept_code")
+  @@index([organizationId])
+  @@map("departments")
+}
+
+// ─────────────────── 维度二：业务线（与部门正交）───────────────────
+// 源码 BusinessLineModel。和 departments 完全平行、互不引用；(org, code) 唯一。
+
+model BusinessLine {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  code           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  userLinks    UserBusinessLine[]
+
+  @@unique([organizationId, code], name: "uq_org_line_code")
+  @@index([organizationId])
+  @@map("business_lines")
+}
+
+// ─────────────────────────── 用户 ───────────────────────────
+// 源码 EnterpriseUserModel。本项目整体即企业版，User 直接承载企业用户语义，
+// 表名映射 enterprise_users 与源码可对照。注意：用户**没有全局角色**，
+// 角色是按部门的（见 UserDepartmentRole）。(org, username) 唯一。
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  username       String
+  passwordHash   String
+  displayName    String
+  email          String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  departmentRoles    UserDepartmentRole[]
+  businessLines      UserBusinessLine[]
+  specialPermissions SpecialPermission[]
+
+  @@unique([organizationId, username], name: "uq_org_username")
+  @@index([organizationId])
+  @@map("enterprise_users")
+}
+
+// ───────────── 维度三：部门角色（三元关联 + 复合主键）★ ─────────────
+// 源码 UserDepartmentRoleModel。主键 (userId, departmentId)，role 是普通列——
+// 这让“一人在不同部门可有不同角色”，同时“一人一部门只有一行”。
+// operator/approver 互斥（跨行约束）由应用层事务 + 触发器保证，见 ADR-002。
+
+model UserDepartmentRole {
+  userId       String
+  departmentId String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@id([userId, departmentId]) // 复合主键：三维落地的关键
+  @@map("user_department_roles")
+}
+
+// ───────────── 用户 × 业务线（纯多对多，不带角色）─────────────
+// 源码 UserBusinessLineModel。业务线只回答“我参与什么”，不回答“我能做什么”，
+// 所以这张表没有 role 列。复合主键 (userId, businessLineId)。
+
+model UserBusinessLine {
+  userId         String
+  businessLineId String
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  businessLine BusinessLine @relation(fields: [businessLineId], references: [id])
+
+  @@id([userId, businessLineId])
+  @@map("user_business_lines")
+}
+
+// ─────────────────── 跨部门特殊权限（例外授权）───────────────────
+// 源码 SpecialPermissionModel。跨部门只读/审批不塞进角色体系，用独立 grant 表，
+// 有 grantedBy 可审计。(userId, permissionType) 唯一：同一特权只授一次。
+
+model SpecialPermission {
+  id             String                @id @default(cuid())
+  userId         String
+  organizationId String
+  permissionType SpecialPermissionType
+  grantedBy      String?
+  createdAt      DateTime              @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([userId, permissionType], name: "uq_user_permission_type")
+  @@index([userId])
+  @@map("special_permissions")
+}
+
+// 注：源码第 7 张 task_extensions（给 Skyvern task 挂企业元数据）不属于 RBAC 维度，
+// 依赖尚未建立的 Task 表，留到迁移 workflows/task 模块时再补。见 three-dim-rbac.md。

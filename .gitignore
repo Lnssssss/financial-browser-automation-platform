@@ -1,0 +1,35 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+*.local
+
+# prisma
+apps/server/prisma/*.db
+
+# logs
+*.log
+logs/
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# vite
+apps/web/dist/
+
+# project docs / internal files (not uploaded)
+harness/
+docs/
+初始化文档.md
+README.md

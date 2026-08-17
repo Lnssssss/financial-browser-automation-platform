@@ -1,0 +1,71 @@
+# AgentFlow Studio — 本地开发编排
+#
+# 用法：
+#   docker compose up -d              # 启动 mysql + redis（基础设施，稳定可用）
+#   docker compose --profile app up   # 额外构建并启动 server + web（需要网络拉取依赖）
+#
+# Stage 2 推荐：基础设施用 docker，server/web 用 pnpm 本地跑（热重载更快）。
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: agentflow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: agentflow
+      MYSQL_USER: agentflow
+      MYSQL_PASSWORD: agentflow
+    ports:
+      - "3316:3306"   # 宿主 3316 → 容器 3306（避开 nestjs-demo 占用的 3306）
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: agentflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  server:
+    profiles: ["app"]
+    build:
+      context: ./apps/server
+    container_name: agentflow-server
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "mysql://agentflow:agentflow@mysql:3306/agentflow"
+      JWT_SECRET: "dev-secret-change-me"
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ./apps/web
+    container_name: agentflow-web
+    restart: unless-stopped
+    ports:
+      - "8081:80"   # 避开 nestjs-demo adminer 的 8080
+    depends_on:
+      - server
+
+volumes:
+  mysql-data:

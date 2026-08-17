@@ -1,0 +1,18 @@
+{
+  "name": "agentflow-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentFlow Studio — 企业级 AI 浏览器自动化平台",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev:server": "pnpm --filter @agentflow/server start:dev",
+    "dev:web": "pnpm --filter @agentflow/web dev",
+    "build": "pnpm -r build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "packageManager": "pnpm@9.15.9"
+}
