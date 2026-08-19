@@ -1,13 +1,12 @@
-// PlannerAgent：把导航目标拆解成有序子任务计划。逐行迁自 enterprise/agent/planner.py。
-//
+// PlannerAgent：把导航目标拆解成有序子任务计划。
 // 注入一个 LlmCallable（(prompt) => Promise<string>），不绑定具体 LLM SDK——
-// 这是源码设计精华：核心逻辑对"用哪个 LLM"无感知，所以全套逻辑可用 mock 覆盖单测。
-// 注入点可为 null（走 fallback 单步计划），忠实保留源码 llm_callable=None 的语义。
+// 核心逻辑对"用哪个 LLM"无感知，所以全套逻辑可用 mock 覆盖单测。
+// 注入点可为 null（走 fallback 单步计划）。
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { FailureStrategy, SubTask, TaskPlan } from './schemas';
 
-/// 注入的 LLM 调用函数。源码 llm_callable: async (prompt: str) -> str。
+/// 注入的 LLM 调用函数。
 export type LlmCallable = (prompt: string) => Promise<string>;
 
 /// DI token：Stage 4 接真实 LLM 时在 module 里 provide 真实实现；
@@ -39,7 +38,6 @@ Output ONLY a JSON object with a "steps" array.
 `;
 
 /// 把 LLM 返回的字符串解析成 failure_strategy 枚举。
-/// 对齐源码 FailureStrategy(...)：非法值【抛错】，由上层 catch 走 fallback。
 function toFailureStrategy(value: unknown): FailureStrategy {
   const v = String(value ?? 'replan');
   const all = Object.values(FailureStrategy) as string[];
@@ -111,7 +109,7 @@ export class PlannerService {
     });
   }
 
-  /// 去掉 LLM 输出的 markdown 代码围栏。对齐源码 planner.py:151-154。
+  /// 去掉 LLM 输出的 markdown 代码围栏。
   private stripCodeFence(raw: string): string {
     const cleaned = raw.trim();
     if (cleaned.startsWith('```')) {
@@ -228,7 +226,7 @@ export class PlannerService {
     }
   }
 
-  /// 单步计划（无需 LLM）。源码 _create_fallback_plan。
+  /// 单步计划（无需 LLM）。
   private createFallbackPlan(navigationGoal: string): TaskPlan {
     return new TaskPlan({
       navigation_goal: navigationGoal,

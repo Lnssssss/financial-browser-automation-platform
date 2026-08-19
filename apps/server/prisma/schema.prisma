@@ -1,7 +1,5 @@
 // AgentFlow Studio — Prisma schema
-// Stage 3：迁移 enterprise/auth 三维 RBAC。
-// 源码对照：enterprise/auth/{models,enums}.py
-// 设计说明见 harness/notes/architecture/three-dim-rbac.md 与 ADR-002。
+// 设计说明见 harness/notes/architecture/three-dim-rbac.md
 
 generator client {
   provider = "prisma-client-js"
@@ -14,7 +12,7 @@ datasource db {
 
 // ─────────────────────────── 枚举 ───────────────────────────
 
-/// 部门内角色。源码 enums.py RoleType；用 Prisma enum 天然获得源码里的 CHECK 约束。
+/// 部门内角色。
 enum Role {
   SUPER_ADMIN
   ORG_ADMIN
@@ -23,15 +21,22 @@ enum Role {
   VIEWER
 }
 
-/// 跨部门特殊权限类型。源码 enums.py SpecialPermissionType。
+/// 跨部门特殊权限类型。
 enum SpecialPermissionType {
   CROSS_ORG_READ
   CROSS_ORG_APPROVE
 }
 
+/// 审批请求生命周期状态。
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  TIMEOUT
+}
+
 // ─────────────────────── 多租户根：组织 ───────────────────────
-// 源码每张表都 FK 到 organizations.organization_id。三维 RBAC 挂在组织下：
-// 跨 org 直接 NONE、所有唯一约束都以 org 为前缀。Stage 2 最小版砍了它，此处补回。
+// 三维 RBAC 挂在组织下：跨 org 直接 NONE、所有唯一约束都以 org 为前缀。
 
 model Organization {
   id        String   @id @default(cuid())
@@ -49,7 +54,7 @@ model Organization {
 }
 
 // ───────────────────── 维度一：部门（层级树）─────────────────────
-// 源码 DepartmentModel。parent_id 自引用做任意深度组织树；(org, code) 唯一。
+// parent_id 自引用做任意深度组织树；(org, code) 唯一。
 
 model Department {
   id             String   @id @default(cuid())
@@ -59,7 +64,7 @@ model Department {
   code           String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  deletedAt      DateTime? // 软删，对齐源码 deleted_at
+  deletedAt      DateTime? // 软删
 
   organization Organization @relation(fields: [organizationId], references: [id])
   // 自引用：一棵部门树。relation 名 "DeptHierarchy" 区分 parent/children 两端。
@@ -73,7 +78,7 @@ model Department {
 }
 
 // ─────────────────── 维度二：业务线（与部门正交）───────────────────
-// 源码 BusinessLineModel。和 departments 完全平行、互不引用；(org, code) 唯一。
+// 和 departments 完全平行、互不引用；(org, code) 唯一。
 
 model BusinessLine {
   id             String   @id @default(cuid())
@@ -93,8 +98,8 @@ model BusinessLine {
 }
 
 // ─────────────────────────── 用户 ───────────────────────────
-// 源码 EnterpriseUserModel。本项目整体即企业版，User 直接承载企业用户语义，
-// 表名映射 enterprise_users 与源码可对照。注意：用户**没有全局角色**，
+// 本项目整体即企业版，User 直接承载企业用户语义，
+// 表名映射 enterprise_users
 // 角色是按部门的（见 UserDepartmentRole）。(org, username) 唯一。
 
 model User {
@@ -120,7 +125,7 @@ model User {
 }
 
 // ───────────── 维度三：部门角色（三元关联 + 复合主键）★ ─────────────
-// 源码 UserDepartmentRoleModel。主键 (userId, departmentId)，role 是普通列——
+// 主键 (userId, departmentId)，role 是普通列——
 // 这让“一人在不同部门可有不同角色”，同时“一人一部门只有一行”。
 // operator/approver 互斥（跨行约束）由应用层事务 + 触发器保证，见 ADR-002。
 
@@ -138,7 +143,7 @@ model UserDepartmentRole {
 }
 
 // ───────────── 用户 × 业务线（纯多对多，不带角色）─────────────
-// 源码 UserBusinessLineModel。业务线只回答“我参与什么”，不回答“我能做什么”，
+// 业务线只回答“我参与什么”，不回答“我能做什么”，
 // 所以这张表没有 role 列。复合主键 (userId, businessLineId)。
 
 model UserBusinessLine {
@@ -154,7 +159,7 @@ model UserBusinessLine {
 }
 
 // ─────────────────── 跨部门特殊权限（例外授权）───────────────────
-// 源码 SpecialPermissionModel。跨部门只读/审批不塞进角色体系，用独立 grant 表，
+// 跨部门只读/审批不塞进角色体系，用独立 grant 表，
 // 有 grantedBy 可审计。(userId, permissionType) 唯一：同一特权只授一次。
 
 model SpecialPermission {
@@ -173,5 +178,41 @@ model SpecialPermission {
   @@map("special_permissions")
 }
 
-// 注：源码第 7 张 task_extensions（给 Skyvern task 挂企业元数据）不属于 RBAC 维度，
-// 依赖尚未建立的 Task 表，留到迁移 workflows/task 模块时再补。见 three-dim-rbac.md。
+
+// ─────────────────── 高危操作分级审批 ───────────────────
+// 风险识别引擎命中高危操作时生成，
+// 记录从"创建 → 决策/超时"的完整生命周期。设计见 ADR-004 与 approval-flow 笔记。
+
+model ApprovalRecord {
+  id             String   @id @default(cuid())
+  taskId         String   // 触发审批的任务 ID
+  organizationId String
+  departmentId   String   // 来源部门
+  businessLineId String?
+
+  // 风险识别详情（可追溯）
+  riskLevel            String // low/medium/high/critical
+  riskReason           String @db.Text
+  operationDescription String? @db.Text
+  screenshotKey        String? // MinIO key（只存 key 不存二进制）
+
+  // 审批路由
+  approverDepartmentId String
+  approverRole         String   @default("approver")
+  notifyDepartmentIds  Json     @default("[]")
+
+  // 生命周期
+  status        ApprovalStatus @default(PENDING)
+  requestedAt   DateTime       @default(now())
+  approverUserId String?
+  decidedAt     DateTime?
+  decisionNote  String?        @db.Text
+  // 超时时长按风险等级绑定：high 3600s / critical 1800s（越紧急越短）。见 DEFAULT_TIMEOUTS。
+  timeoutSeconds Int           @default(3600)
+
+  // 最高频查询：某机构/某部门下所有 pending 记录 → 两个复合索引。
+  @@index([organizationId, status], name: "idx_apr_org_status")
+  @@index([approverDepartmentId, status], name: "idx_apr_dept_status")
+  @@index([taskId])
+  @@map("approval_requests")
+}

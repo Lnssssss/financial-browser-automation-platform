@@ -4,7 +4,7 @@
 
 import { randomUUID } from 'crypto';
 
-/// 子任务失败时怎么办。源码 schemas.py FailureStrategy。
+/// 子任务失败时怎么办。
 /// 值保持小写字符串，与 LLM 输出的 JSON（failure_strategy: "abort"）直接对齐。
 export enum FailureStrategy {
   RETRY = 'retry',
@@ -13,7 +13,7 @@ export enum FailureStrategy {
   REPLAN = 'replan', // 让 Planner 重新规划剩余步骤
 }
 
-/// 单个子任务的执行状态。源码 schemas.py SubTaskStatus。
+/// 单个子任务的执行状态。
 export enum SubTaskStatus {
   PENDING = 'pending',
   RUNNING = 'running',
@@ -23,8 +23,7 @@ export enum SubTaskStatus {
   REPLANNED = 'replanned', // 被新计划替换
 }
 
-/// 整体协调状态。源码里是【裸字符串】，迁移时统一成枚举（见 ADR-001 笔记决定）。
-/// 值与源码字符串一致，保证行为对齐。
+/// 整体协调状态。
 export enum CoordinationStatus {
   RUNNING = 'running',
   COMPLETED = 'completed',
@@ -32,12 +31,12 @@ export enum CoordinationStatus {
   NEEDS_HUMAN = 'needs_human',
 }
 
-/// 生成带前缀的短 id。对齐源码 uuid.uuid4().hex[:12]。
+/// 生成带前缀的短 id。
 function shortId(prefix: string): string {
   return `${prefix}${randomUUID().replace(/-/g, '').slice(0, 12)}`;
 }
 
-/// PlannerAgent 产出的计划中的一个步骤。源码 schemas.py SubTask。
+/// PlannerAgent 产出的计划中的一个步骤。
 export class SubTask {
   subtask_id: string;
   index: number;
@@ -63,7 +62,6 @@ export class SubTask {
     this.index = init.index;
     this.goal = init.goal;
     this.completion_condition = init.completion_condition;
-    // 源码默认值：max_retries=2，failure_strategy=REPLAN
     this.max_retries = init.max_retries ?? 2;
     this.failure_strategy = init.failure_strategy ?? FailureStrategy.REPLAN;
     this.status = init.status ?? SubTaskStatus.PENDING;
@@ -74,7 +72,7 @@ export class SubTask {
   }
 }
 
-/// PlannerAgent 产出的完整计划。源码 schemas.py TaskPlan。
+/// PlannerAgent 产出的完整计划。
 export class TaskPlan {
   plan_id: string;
   navigation_goal: string;
@@ -101,7 +99,7 @@ export class TaskPlan {
   }
 }
 
-/// ExecutorAgent 执行单个子任务的结果。源码 schemas.py ExecutionResult。
+/// ExecutorAgent 执行单个子任务的结果。
 export interface ExecutionResult {
   subtask_id: string;
   success: boolean;
@@ -112,7 +110,7 @@ export interface ExecutionResult {
   duration_ms?: number | null;
 }
 
-/// Planner-Executor 协调的整体状态。源码 schemas.py CoordinationState。
+/// Planner-Executor 协调的整体状态。
 export class CoordinationState {
   task_id: string;
   org_id: string;

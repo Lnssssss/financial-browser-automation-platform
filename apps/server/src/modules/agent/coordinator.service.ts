@@ -1,8 +1,6 @@
-// AgentCoordinator：编排 Planner + Executor。逐行迁自 enterprise/agent/coordinator.py。
-//
+// AgentCoordinator：编排 Planner + Executor。
 // 负责：初始计划创建 / 顺序执行子任务 / 失败检测与 replan / 断点续跑（跳过已完成）/
 // 审计回调集成。planner、executor 由 DI 注入；audit_callback、max_replans 作为配置项，
-// 保留源码可按用例定制的能力（单测直接 new 即可，与源码一比一）。
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ExecutorService } from './executor.service';
@@ -17,8 +15,8 @@ import {
   TaskPlan,
 } from './schemas';
 
-/// 审计回调。源码 audit_callback: async (subtask, result) -> None。
-/// Stage 4 生产接线时会换成 EventEmitter2 事件（天然解耦，比回调更好，见笔记）。
+/// 审计回调。
+/// Stage 4 生产接线时会换成 EventEmitter2 事件
 export type AuditCallback = (
   subtask: SubTask,
   result: ExecutionResult,
@@ -84,7 +82,7 @@ export class CoordinatorService {
     return this.executePlan(state, plan, completedSubtasks, context);
   }
 
-  /// 执行一个计划里的所有子任务。源码 _execute_plan。
+  /// 执行一个计划里的所有子任务。
   private async executePlan(
     state: CoordinationState,
     plan: TaskPlan,
@@ -144,7 +142,7 @@ export class CoordinatorService {
     return state;
   }
 
-  /// 按失败策略处理一个失败的子任务。源码 _handle_failure。
+  /// 按失败策略处理一个失败的子任务。
   /// 返回：continued（跳过继续）/ aborted（任务终结）/ replanned（已生成并执行新计划）。
   private async handleFailure(
     state: CoordinationState,
@@ -206,7 +204,7 @@ export class CoordinatorService {
 
       state.current_plan = newPlan;
 
-      // 执行新计划（递归；递归深度由 max_replans 间接界定——见 ADR 面试点）
+      // 执行新计划（递归；递归深度由 max_replans ）
       await this.executePlan(state, newPlan, completedSubtasks, context);
       return 'replanned';
     }
