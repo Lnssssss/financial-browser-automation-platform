@@ -1,12 +1,11 @@
 // Skill 管道执行器：顺序执行一串 skill，带错误处理/重试/审计。
-// 逐行迁自 enterprise/skills/executor.py。源码是模块级函数，这里做成 Service
-// 以便注入 SkillRegistryService 查 skill。控制流分支与源码严格对齐。
+// 以便注入 SkillRegistryService 查 skill。
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ErrorStrategy, SkillContext, SkillResult, SkillStatus } from './base';
 import { SkillRegistryService } from './skill-registry.service';
 
-/// 管道里的一步。源码 executor.py SkillStep（dataclass）。
+/// 管道里的一步。
 export interface SkillStep {
   skill_name: string;
   params: Record<string, unknown>;
@@ -24,7 +23,7 @@ export interface StepRecord {
   error?: string;
 }
 
-/// 执行整条管道的结果。源码 executor.py PipelineResult（dataclass）。
+/// 执行整条管道的结果。
 export interface PipelineResult {
   success: boolean;
   steps_completed: number;
@@ -35,7 +34,7 @@ export interface PipelineResult {
   error_message: string | null;
 }
 
-/// 审计回调。源码 audit_callback(step_index, skill_name, params_dict, result)。
+/// 审计回调。
 export type PipelineAuditCallback = (
   stepIndex: number,
   skillName: string,

@@ -1,17 +1,17 @@
-// Skill 统一抽象基类 + 结果/状态类型 + 脱敏。逐条对齐 enterprise/skills/base.py。
+// Skill 统一抽象基类 + 结果/状态类型 + 脱敏。
 //
 // 每个 Skill 自带：参数校验（paramsModel 构造器填默认值）、execute、错误策略（静态属性）、
-// 审计输出（toAuditDict 脱敏）。skill 无状态，用 DI 单例实例读元数据，与源码"每步 new"等价。
-// 注册表用 NestJS DI 装配（见 skill-registry.service），替代源码 @register_skill 全局字典。
+// 审计输出（toAuditDict 脱敏）。skill 无状态，用 DI 单例实例读元数据。
+// 注册表用 NestJS DI 装配（见 skill-registry.service）。
 
-/// Skill 执行失败时怎么处理。源码 base.py ErrorStrategy（注意：无 replan，比 SubTask 少一个）。
+/// Skill 执行失败时怎么处理。
 export enum ErrorStrategy {
   RETRY = 'retry',
   SKIP = 'skip',
   ABORT = 'abort',
 }
 
-/// Skill 调用的执行状态。源码 base.py SkillStatus。
+/// Skill 调用的执行状态。
 export enum SkillStatus {
   PENDING = 'pending',
   RUNNING = 'running',
@@ -20,7 +20,7 @@ export enum SkillStatus {
   SKIPPED = 'skipped',
 }
 
-/// 任意 skill 执行的标准化结果。源码 base.py SkillResult。
+/// 任意 skill 执行的标准化结果。
 export interface SkillResult {
   status: SkillStatus;
   data?: Record<string, unknown> | null;
@@ -29,16 +29,14 @@ export interface SkillResult {
   duration_ms?: number | null;
 }
 
-/// toAuditDict 的输出。源码返回 {"skill": ..., "params": ...}。
+/// toAuditDict 的输出。
 export interface AuditEntry {
   skill: string;
   params: Record<string, unknown>;
 }
 
-// ── 浏览器接口（ADR-003）───────────────────────────────────────────
 // skill 的 execute 面向这个鸭子类型接口编程，不依赖真实浏览器。
-// 源项目生产从未传入真实 page，测试全用 mock。真实实现（Playwright-Node
-// 还是桥接 Python Worker）留到 Stage 4 决定。方法集 = 7 个 skill 实际用到的最小集。
+// 方法集 = 7 个 skill 实际用到的最小集。
 
 export interface ElementHandle {
   evaluate(fn: string): Promise<unknown>;
@@ -65,10 +63,10 @@ export interface BrowserPage {
   expectDownload(opts?: { timeout?: number }): DownloadWaiter;
 }
 
-/// LLM 引导的元素操作。源码 ctx["llm_handler"]: async (page, goal) -> None。
+/// LLM 引导的元素操作。
 export type LlmHandler = (page: BrowserPage, goal: string) => Promise<void>;
 
-/// Skill 执行上下文。源码是个 dict，这里给出常用键的类型。
+/// Skill 执行上下文。
 export interface SkillContext {
   page?: BrowserPage;
   llm_handler?: LlmHandler;
@@ -78,7 +76,7 @@ export interface SkillContext {
 /// params 模型构造器：接收原始 dict，产出填好默认值的参数对象。
 export type ParamsCtor<T extends object> = new (raw?: Record<string, unknown>) => T;
 
-/// 所有可组合 skill 的抽象基类。源码 base.py BaseSkill(ABC)。
+/// 所有可组合 skill 的抽象基类。
 export abstract class BaseSkill<TParams extends object = Record<string, unknown>> {
   abstract readonly skillName: string;
   abstract readonly description: string;
@@ -86,16 +84,16 @@ export abstract class BaseSkill<TParams extends object = Record<string, unknown>
   readonly errorStrategy: ErrorStrategy = ErrorStrategy.RETRY;
   readonly maxRetries: number = 2;
 
-  /// 用参数模型校验原始参数（构造即填默认值）。源码 validate_params -> model_validate。
+  /// 用参数模型校验原始参数（构造即填默认值）。
   validateParams(raw: Record<string, unknown> = {}): TParams {
     return new this.paramsModel(raw);
   }
 
-  /// 执行 skill。源码 @abstractmethod execute。
+  /// 执行 skill。
   abstract execute(params: TParams, context?: SkillContext | null): Promise<SkillResult>;
 
-  /// 脱敏后的审计表示。源码 to_audit_dict：按字段名关键词匹配后打星。
-  /// 局限（源码原样保留）：靠字段名硬编码，cardNo/idCard/phone 会漏。
+  /// 脱敏后的审计表示。
+  /// 局限：靠字段名硬编码，cardNo/idCard/phone 会漏。
   /// 改善方向见 [[02-skill-abstraction]]：@Sensitive() 装饰器（属改 bug，本次不做）。
   toAuditDict(params: TParams): AuditEntry {
     const data: Record<string, unknown> = { ...(params as Record<string, unknown>) };

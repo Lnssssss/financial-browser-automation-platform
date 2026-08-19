@@ -14,7 +14,7 @@ import { SkillRegistryService } from './skill-registry.service';
 import { PipelineService, SkillStep } from './pipeline.service';
 
 // 逐条翻译自源项目 tests/unit/test_skills.py（不含 TestTemplateSkillSteps，
-// 那 4 个依赖 workflows 模块，留到迁 workflows 时补）。
+// 那 4 个依赖 workflows 模块，已在迁 workflows 时补于 workflows/workflow.controller.spec.ts）。
 // 作为 skills 模块的行为对齐基准。真实 page 用 mock，与源码 AsyncMock 对齐（ADR-003）。
 
 /// 手动装配注册表（等价源码全局 SKILL_REGISTRY，但显式 DI 装配）。

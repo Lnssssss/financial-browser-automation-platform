@@ -1,4 +1,4 @@
-// 提取类 skill：TableExtractSkill、FileDownloadSkill。逐行迁自 enterprise/skills/extraction_skills.py。
+// 提取类 skill：TableExtractSkill、FileDownloadSkill。
 
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -53,7 +53,7 @@ const TABLE_EXTRACT_JS = `(args) => {
   return { headers, rows };
 }`;
 
-/// 生成 CSV 文本。对齐源码 Python csv 模块（逗号分隔，逐行）。
+/// 生成 CSV 文本。
 function toCsv(headers: string[], rows: string[][]): string {
   const lines: string[] = [];
   if (headers.length) lines.push(headers.join(','));
@@ -191,7 +191,7 @@ export class FileDownloadSkill extends BaseSkill<FileDownloadParams> {
 
       const llmHandler = ctx.llm_handler;
 
-      // 先开始等待下载事件，再点击触发（对齐源码 async with page.expect_download）
+      // 先开始等待下载事件，再点击触发
       const downloadWaiter = page.expectDownload({ timeout: p.wait_timeout_ms });
 
       if (llmHandler && !p.trigger_selector) {
