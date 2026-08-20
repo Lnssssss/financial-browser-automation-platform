@@ -3,7 +3,6 @@ import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 // operator/approver 互斥（职责分离）。见 ADR-002：应用层事务为主 + 触发器兜底。
-// 对齐源码 enterprise/auth/constraints.py 的 validate_role_exclusion。
 
 const CONFLICT: Partial<Record<Role, Role>> = {
   [Role.OPERATOR]: Role.APPROVER,

@@ -2,7 +2,6 @@
 -- 定位：应用层 UserRoleService.assignRole 事务是主校验；此触发器兜住
 -- “绕过应用直接写库”（DBA、迁移脚本）的路径，保证任何写入都挡得住。
 --
--- 与源码 enterprise/auth/constraints.py 的 PG 触发器等价，改写为 MySQL 语法：
 --   PG:  RAISE EXCEPTION       →  MySQL: SIGNAL SQLSTATE '45000'
 --   PG:  $$ ... $$ plpgsql     →  MySQL: BEGIN ... END + DELIMITER
 --

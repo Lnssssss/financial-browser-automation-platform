@@ -19,7 +19,7 @@ export class CacheController {
   }
 
   /// 清某任务的缓存决策。
-  /// 注：key 按 DOM+goal 组织、无法按 task_id 精确过滤，故按机构前缀整体清（对齐源码兜底策略）。
+  /// 注：key 按 DOM+goal 组织、无法按 task_id 精确过滤，故按机构前缀整体清。
   @Delete('task/:taskId')
   clearTaskCache(@Param('taskId') taskId: string, @Request() req: { user: UserContext }) {
     const prefix = `action_cache:${req.user.orgId}:`;

@@ -116,8 +116,6 @@ describe('WorkflowController.instantiate', () => {
 });
 
 describe('workflow templates ↔ skills wiring (skills 欠账回补)', () => {
-  // 迁自源码 test_skills.py::TestTemplateSkillSteps。当初 skills 模块缺 workflows 依赖跳过，
-  // 现补上：验证每个模板的 skill_steps 结构，并且引用的 skill 名都真实存在于注册表。
   // 已注册 skill 名（skill-registry.service 装配的 7 个）。
   const REGISTERED_SKILLS = new Set([
     'login',

@@ -35,7 +35,7 @@ export class TableExtractParams {
   }
 }
 
-// 提取表格的浏览器端 JS。对齐源码内联脚本（按 [selector, maxRows, skipEmpty] 取参）。
+// 提取表格的浏览器端 JS。
 const TABLE_EXTRACT_JS = `(args) => {
   const [selector, maxRows, skipEmpty] = args;
   const table = document.querySelector(selector);

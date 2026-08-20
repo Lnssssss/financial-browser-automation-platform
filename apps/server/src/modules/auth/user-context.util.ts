@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { UserContext } from './permission.types';
 
-// UserContext 上的谓词。逐条对齐源码 schemas.py 的 @property / 方法。
+// UserContext 上的谓词。
 // UserContext 从 JWT 反序列化而来是纯数据，方法留不住，所以做成独立纯函数。
 
 export function isSuperAdmin(u: UserContext): boolean {

@@ -1,6 +1,6 @@
 // Skills 模块：装配 7 个 skill + 注册表 + 管道执行器。
 // 每个 skill 是一个 provider，SkillRegistryService 构造时注入全部（显式 DI 装配，
-// 替代源码 @register_skill 的 import 副作用）。真实 page 来源留到 Stage 4（见 ADR-003）。
+// 真实 page 来源留到 Stage 4（见 ADR-003）。
 
 import { Module } from '@nestjs/common';
 import { LoginSkill, SessionKeepAliveSkill } from './auth-skills';

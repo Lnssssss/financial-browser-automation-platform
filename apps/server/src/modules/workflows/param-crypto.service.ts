@@ -13,7 +13,7 @@ export const ENV_KEY_NAME = 'FINRPA_PARAM_KEY';
 const IV_LENGTH = 12; // GCM 推荐 96-bit IV
 const AUTH_TAG_LENGTH = 16;
 
-/// 解密失败（密钥错误或密文损坏/被篡改）。对齐源码 Fernet 的 InvalidToken 语义。
+/// 解密失败（密钥错误或密文损坏/被篡改）。
 export class InvalidTokenError extends Error {
   constructor(message = 'Invalid token: decryption failed') {
     super(message);

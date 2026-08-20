@@ -4,8 +4,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UserRoleService } from './user-role.service';
 
 // 集成测试：验证 operator/approver 互斥的【应用层事务闸】（ADR-002 主校验）。
-// 对齐源码 tests/unit/test_auth_models.py::TestValidateRoleExclusion 的 5 个语义分支，
-// 但用真实 MySQL + 真实事务（源码用 mock session）。
 // 需要 docker mysql 在线：pnpm test:int
 
 const prisma = new PrismaClient();

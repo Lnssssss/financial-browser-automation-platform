@@ -3,7 +3,6 @@
 //   第 2 层（Parse）：解析 + schema 校验 + markdown 清洗 + 指数退避重试
 //   第 3 层（Task）：重试耗尽后，把任务转入 needs_human 交人工
 //
-// 源码用 Pydantic 同时做「生成 JSON Schema 塞进 prompt」+「校验返回」两件事。
 // 本项目零新依赖铁律：不引 zod，手写最小 ResponseSchema —— 字段描述表既能渲染成
 // schema 文本喂给模型，又能校验解析结果。守住 Pydantic 在这里真正用到的两个能力。
 

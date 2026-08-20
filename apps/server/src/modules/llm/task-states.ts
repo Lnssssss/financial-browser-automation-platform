@@ -84,8 +84,7 @@ export class InvalidTransitionError extends Error {
 }
 
 /// 校验一次状态转换是否合法。
-/// 合法返回 true；非法抛 InvalidTransitionError（与源码"抛异常而非返 false"一致，
-/// 让非法流转在调用点显式炸出、不被静默忽略）。
+/// 合法返回 true；非法抛 InvalidTransitionError（非法流转在调用点显式炸出、不被静默忽略）。
 export function validateTransition(currentState: string, targetState: string): boolean {
   const allowed = VALID_TRANSITIONS[currentState] ?? new Set<string>();
   if (!allowed.has(targetState)) {
