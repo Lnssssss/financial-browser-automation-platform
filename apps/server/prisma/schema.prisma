@@ -216,3 +216,48 @@ model ApprovalRecord {
   @@index([taskId])
   @@map("approval_requests")
 }
+
+// ─────────────────── 全链路审计日志 ───────────────────
+// 每个动作步骤一条记录：脱敏后的输入 + 原值 SHA-256（可验篡改而不存明文）+
+// 前后截图 key（只存 MinIO/S3 对象 key，不存二进制）+ 执行耗时 + 审批关联，供合规审查。
+// 三维（org/dept/businessLine）裸存字符串（对齐 ApprovalRecord：审计是写多读少的旁路，
+// 不建外键 relation 以免拖慢主执行流的写入）。
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  taskId         String
+  organizationId String
+  departmentId   String
+  businessLineId String?
+
+  // 动作详情
+  actionIndex     Int
+  actionType      String
+  targetElement   String? @db.Text
+  inputValue      String? @db.Text // 已脱敏
+  inputValueRawHash String? // 原值 SHA-256，验完整性用（不存明文）
+  pageUrl         String? @db.Text
+
+  // 截图（MinIO/S3 对象 key）
+  screenshotBeforeKey String?
+  screenshotAfterKey  String?
+
+  // 执行
+  durationMs      Int?
+  executor        String  // "agent" 或 user_id
+  executionResult String  @default("success")
+  errorMessage    String? @db.Text
+
+  // 审批关联
+  hasApproval    Boolean @default(false)
+  approvalId     String?
+  approverUserId String?
+
+  createdAt DateTime @default(now())
+
+  // 三个最高频查询维度 → 三复合索引：按任务追时间线 / 按机构查时段 / 按部门查时段。
+  @@index([taskId, actionIndex], name: "idx_aud_task_action")
+  @@index([organizationId, createdAt], name: "idx_aud_org_time")
+  @@index([departmentId, createdAt], name: "idx_aud_dept_time")
+  @@map("audit_logs")
+}

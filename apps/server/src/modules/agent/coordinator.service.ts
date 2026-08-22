@@ -45,7 +45,7 @@ export class CoordinatorService {
     this.maxReplans = options.maxReplans ?? 3;
   }
 
-  /// 通过 Planner -> Executor 协调执行一个完整任务。源码 run。
+  /// 通过 Planner -> Executor 协调执行一个完整任务。
   async run(
     taskId: string,
     orgId: string,
