@@ -261,3 +261,27 @@ model AuditLog {
   @@index([departmentId, createdAt], name: "idx_aud_dept_time")
   @@map("audit_logs")
 }
+
+// ─────────────── 任务的企业元数据扩展（租户隔离对象）───────────────
+// Skyvern 任务本体在执行层（Python Worker），这里只挂三维归属 + 风险等级，
+// 供多维租户隔离过滤：查询按 (org, 可见部门 OR 可见业务线) 收敛可见范围。
+// 三维裸存字符串 + 各自索引（对齐 ApprovalRecord/AuditLog：不建 relation，
+// 让企业元数据与执行层任务解耦，隔离过滤只吃这三列 + org）。
+
+model TaskExtension {
+  id             String   @id @default(cuid())
+  taskId         String   @unique // 一个任务一条扩展
+  organizationId String
+  departmentId   String
+  businessLineId String? // 可空：任务可能不归属任何业务线
+  riskLevel      String   @default("low")
+  createdBy      String // 创建者 user_id
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 隔离过滤的三个维度各建索引：org 恒过滤，dept/bl 受限用户按可见集合 IN。
+  @@index([organizationId], name: "idx_ext_org")
+  @@index([departmentId], name: "idx_ext_dept")
+  @@index([businessLineId], name: "idx_ext_bl")
+  @@map("task_extensions")
+}

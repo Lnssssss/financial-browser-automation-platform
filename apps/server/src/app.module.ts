@@ -8,10 +8,11 @@ import { LlmModule } from './modules/llm/llm.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { TenantModule } from './modules/tenant/tenant.module';
 import { HealthController } from './health.controller';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UserModule, ApprovalModule, WorkflowModule, LlmModule, AuditModule, DashboardModule, NotificationModule],
+  imports: [PrismaModule, AuthModule, UserModule, ApprovalModule, WorkflowModule, LlmModule, AuditModule, DashboardModule, NotificationModule, TenantModule],
   controllers: [HealthController],
 })
 export class AppModule {}
