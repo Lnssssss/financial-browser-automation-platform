@@ -3,91 +3,21 @@
 //   第 2 层（Parse）：解析 + schema 校验 + markdown 清洗 + 指数退避重试
 //   第 3 层（Task）：重试耗尽后，把任务转入 needs_human 交人工
 //
-// 本项目零新依赖铁律：不引 zod，手写最小 ResponseSchema —— 字段描述表既能渲染成
-// schema 文本喂给模型，又能校验解析结果。守住 Pydantic 在这里真正用到的两个能力。
+// 结构化 schema 用 zod：z.object 定形状，z.toJSONSchema 渲染成 JSON Schema 文本喂模型，
+// schema.parse 做运行时校验（失败抛 ZodError）。zod 一并顶掉「生成 schema 文本」与
+// 「校验解析结果」两件事，类型也由 z.infer 自动推导，无需手写 <T> 与形状表同步。
 
-/// 字段类型。integer 额外要求整数，number 接受任意数值。
-export type FieldType = 'string' | 'number' | 'integer' | 'boolean';
+import { z, ZodError, type ZodType } from 'zod';
 
-export interface FieldSpec {
-  type: FieldType;
-  required?: boolean; // 默认 true
-}
+/// 结构化响应 schema 即一个 zod 类型。用类型别名而非新类，直接吃 zod 原生能力。
+/// 泛型 T 由 z.infer 推出，parseAndValidate 的返回值随之带精确类型。
+export type ResponseSchema<T = unknown> = ZodType<T>;
 
-export type SchemaShape = Record<string, FieldSpec>;
-
-/// schema 校验失败（等价 Pydantic ValidationError）。
-export class SchemaValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SchemaValidationError';
-  }
-}
-
-/// JSON 解析失败（等价 json.JSONDecodeError）。
+/// JSON 解析失败（等价 json.JSONDecodeError）。schema 校验失败用 zod 的 ZodError，不再自造。
 export class JsonParseError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'JsonParseError';
-  }
-}
-
-/// 最小响应 schema：字段描述 -> 生成 JSON Schema（喂 prompt）+ 校验解析结果。
-/// 顶掉 Pydantic 在 resilient_caller 里真正用到的两个能力，不引第三方库。
-export class ResponseSchema<T = Record<string, unknown>> {
-  constructor(
-    public readonly name: string,
-    public readonly shape: SchemaShape,
-  ) {}
-
-  /// 生成 JSON Schema 对象（渲染进 prompt，让模型知道要产出什么形状）。
-  jsonSchema(): Record<string, unknown> {
-    const properties: Record<string, unknown> = {};
-    const required: string[] = [];
-    for (const [field, spec] of Object.entries(this.shape)) {
-      properties[field] = { type: spec.type === 'integer' ? 'integer' : spec.type };
-      if (spec.required ?? true) required.push(field);
-    }
-    return { title: this.name, type: 'object', properties, required };
-  }
-
-  /// 校验解析后的数据是否匹配 schema。不匹配抛 SchemaValidationError。
-  /// 逐字段查：必填缺失、类型不符都记进错误串一次性报出。
-  validate(data: unknown): T {
-    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-      throw new SchemaValidationError('expected a JSON object');
-    }
-    const obj = data as Record<string, unknown>;
-    const errors: string[] = [];
-
-    for (const [field, spec] of Object.entries(this.shape)) {
-      const present = field in obj;
-      if (!present) {
-        if (spec.required ?? true) errors.push(`missing required field '${field}'`);
-        continue;
-      }
-      if (!matchesType(obj[field], spec.type)) {
-        errors.push(`field '${field}' expected ${spec.type}`);
-      }
-    }
-
-    if (errors.length > 0) {
-      throw new SchemaValidationError(errors.join('; '));
-    }
-    return obj as T;
-  }
-}
-
-function matchesType(value: unknown, type: FieldType): boolean {
-  switch (type) {
-    case 'string':
-      return typeof value === 'string';
-    case 'boolean':
-      return typeof value === 'boolean';
-    case 'number':
-      return typeof value === 'number' && Number.isFinite(value);
-    case 'integer':
-      return typeof value === 'number' && Number.isInteger(value);
   }
 }
 
@@ -114,12 +44,13 @@ export interface LLMCallResult<T = unknown> {
 const MARKDOWN_FENCE_RE = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
 
 /// 第 1 层：构造逼模型输出 JSON 的系统提示词，把 schema 内联进去。
+/// schema 文本由 z.toJSONSchema 从 zod schema 生成（标准 JSON Schema，模型友好）。
 export function buildStructuredPrompt(
   taskDescription: string,
   schema: ResponseSchema,
   additionalContext = '',
 ): string {
-  const schemaJson = JSON.stringify(schema.jsonSchema(), null, 2);
+  const schemaJson = JSON.stringify(z.toJSONSchema(schema), null, 2);
 
   let prompt =
     'You are a financial RPA assistant. You MUST respond with valid JSON ' +
@@ -144,8 +75,8 @@ export function cleanLlmResponse(raw: string): string {
   return text;
 }
 
-/// 第 2 层：解析 JSON 并按 schema 校验。
-/// JSON 非法抛 JsonParseError；结构不符抛 SchemaValidationError。
+/// 第 2 层：解析 JSON 并按 zod schema 校验。
+/// JSON 非法抛 JsonParseError；结构不符抛 zod 的 ZodError。
 export function parseAndValidate<T>(raw: string, schema: ResponseSchema<T>): T {
   const cleaned = cleanLlmResponse(raw);
   let data: unknown;
@@ -154,7 +85,7 @@ export function parseAndValidate<T>(raw: string, schema: ResponseSchema<T>): T {
   } catch (e) {
     throw new JsonParseError(e instanceof Error ? e.message : String(e));
   }
-  return schema.validate(data);
+  return schema.parse(data); // 校验失败抛 ZodError
 }
 
 /// 第 1+2 层：带指数退避重试的 LLM 调用。
@@ -206,12 +137,16 @@ export async function callLlmWithRetry<T>(
 }
 
 /// 把一次尝试的错误按类型格式化（保留错误类型名，便于排查）。
+/// zod 的 ZodError 走独立分支，用其 issues 拼出可读的字段级错误摘要。
 function formatAttemptError(attempt: number, e: unknown): string {
   if (e instanceof JsonParseError) {
     return `Attempt ${attempt}: JSON parse error — ${e.message}`;
   }
-  if (e instanceof SchemaValidationError) {
-    return `Attempt ${attempt}: Schema validation error — ${e.message}`;
+  if (e instanceof ZodError) {
+    const summary = e.issues
+      .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .join('; ');
+    return `Attempt ${attempt}: Schema validation error — ${summary}`;
   }
   const name = e instanceof Error ? e.name || e.constructor.name : typeof e;
   const msg = e instanceof Error ? e.message : String(e);

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { z, ZodError } from 'zod';
 import {
   VALID_TRANSITIONS,
   TERMINAL_STATES,
@@ -7,8 +8,6 @@ import {
   validateTransition,
 } from './task-states';
 import {
-  ResponseSchema,
-  SchemaValidationError,
   JsonParseError,
   buildStructuredPrompt,
   cleanLlmResponse,
@@ -22,10 +21,11 @@ import { resolveStuckTask, makeResolution, StuckTaskInfo } from './human-interve
 // 作为 llm 模块纯逻辑四件套的行为对齐基准。
 
 // SampleResponse 等价：Pydantic 的 action:str/target:str/confidence:float。
-const SAMPLE = new ResponseSchema<{ action: string; target: string; confidence: number }>('SampleResponse', {
-  action: { type: 'string' },
-  target: { type: 'string' },
-  confidence: { type: 'number' },
+// 用 zod 原生 z.object 定义；类型由 z.infer 自动推导，无需手写泛型形状。
+const SAMPLE = z.object({
+  action: z.string(),
+  target: z.string(),
+  confidence: z.number(),
 });
 
 // ============================================================
@@ -163,8 +163,8 @@ describe('parseAndValidate', () => {
   it('invalid json throws JsonParseError', () => {
     expect(() => parseAndValidate('not json at all', SAMPLE)).toThrow(JsonParseError);
   });
-  it('schema mismatch throws SchemaValidationError', () => {
-    expect(() => parseAndValidate('{"action": "click"}', SAMPLE)).toThrow(SchemaValidationError);
+  it('schema mismatch throws ZodError', () => {
+    expect(() => parseAndValidate('{"action": "click"}', SAMPLE)).toThrow(ZodError);
   });
   it('markdown wrapped parses', () => {
     const raw = '```json\n{"action": "click", "target": "btn", "confidence": 0.8}\n```';

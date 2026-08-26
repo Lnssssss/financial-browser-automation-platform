@@ -20,7 +20,6 @@ export const RISK_LABEL_CN: Record<string, string> = {
 };
 
 /// 把秒数转成人类可读的超时文案：≥1 小时按小时，否则按分钟。
-/// 整除截断（Math.floor），与源整数除法语义一致。
 export function timeoutDisplay(seconds: number): string {
   if (seconds >= 3600) {
     const hours = Math.floor(seconds / 3600);

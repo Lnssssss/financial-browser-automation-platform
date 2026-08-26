@@ -8,7 +8,7 @@ import { Injectable } from '@nestjs/common';
 import { CHANNEL_WECOM, CHANNEL_DINGTALK } from './notification.types';
 import type { SendResult } from './notification.types';
 
-/// webhook 请求超时（毫秒）。源用 httpx.Timeout(connect=5,read=10)，此处取其上界 10s 作整体超时。
+/// webhook 请求超时（毫秒）。此处取 10s 作整体超时。
 export const WEBHOOK_TIMEOUT_MS = 10_000;
 
 /// HTTP POST 的最小抽象。只暴露发送所需的字段，屏蔽底层 fetch/axios 差异。

@@ -20,7 +20,7 @@ export class DashboardController {
 
   @Get('trend')
   async getTrend(@Request() req: { user: UserContext }, @Query('days') days = '7') {
-    // days 收口成 [1,90] 的整数，对齐源码 Query(7, ge=1, le=90)。
+    // days 收口成 [1,90] 的整数。
     // 先判 NaN（非数字才回退默认 7），再 clamp——否则 '0' 会被 `|| 7` 误当缺省。
     const parsed = parseInt(days, 10);
     const d = Number.isNaN(parsed) ? 7 : Math.min(90, Math.max(1, parsed));
@@ -66,7 +66,7 @@ export class DashboardController {
     return csv;
   }
 
-  /// 拼 CSV 文本：概览段 + 30 天趋势段，字段/顺序对齐源码 export_statistics_csv。
+  /// 拼 CSV 文本：概览段 + 30 天趋势段。
   private buildCsv(
     overview: Awaited<ReturnType<DashboardService['getOverview']>>,
     trend: Awaited<ReturnType<DashboardService['getTrend']>>,

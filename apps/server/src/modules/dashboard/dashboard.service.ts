@@ -18,8 +18,7 @@ import {
 } from './dashboard.types';
 
 // Dashboard 编排层。把「取数据源 → 查缓存 → 未命中则计算 → 回写缓存」这条固定流程收成一处，
-// 六个统计各一个方法。缓存 key 的 metric 名对齐源码（overview/trend/errors/business_lines/
-// approval_time/cost），trend 带 {days} 参与 key 哈希——不同 days 不能互相命中。
+// 六个统计各一个方法。
 
 @Injectable()
 export class DashboardService {
