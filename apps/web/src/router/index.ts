@@ -19,6 +19,38 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  {
+    path: '/enterprise',
+    component: () => import('@/layouts/EnterpriseLayout.vue'),
+    children: [
+      { path: '', redirect: '/enterprise/dashboard' },
+      {
+        path: 'dashboard',
+        name: 'enterprise-dashboard',
+        component: () => import('@/views/enterprise/dashboard/DashboardPage.vue'),
+      },
+      {
+        path: 'approvals',
+        name: 'enterprise-approvals',
+        component: () => import('@/views/enterprise/approvals/ApprovalsPage.vue'),
+      },
+      {
+        path: 'audit',
+        name: 'enterprise-audit',
+        component: () => import('@/views/enterprise/audit/AuditLogsPage.vue'),
+      },
+      {
+        path: 'permissions',
+        name: 'enterprise-permissions',
+        component: () => import('@/views/enterprise/permissions/PermissionsPage.vue'),
+      },
+      {
+        path: 'llm',
+        name: 'enterprise-llm',
+        component: () => import('@/views/enterprise/llm/LLMMonitorPage.vue'),
+      },
+    ],
+  },
 ];
 
 export const router = createRouter({
