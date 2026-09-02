@@ -27,7 +27,6 @@ export interface RetryQueueClient {
 }
 
 /// 构造一条投递审计记录，自动补当前 UTC 时间戳。
-/// 抽成工厂是为了对齐源 dataclass 的 __post_init__（timestamp 缺省即自动填）。
 function makeAttempt(
   approvalId: string,
   targetUserId: string,
@@ -45,8 +44,7 @@ function makeAttempt(
   };
 }
 
-/// 一次审批的聚合投递结果。totalSuccess/totalFailed 用 getter 从 attempts 实时派生，
-/// 避免与 attempts 数组不一致（对齐源 dataclass 的 @property 语义）。
+/// 一次审批的聚合投递结果。totalSuccess/totalFailed 用 getter 从 attempts 实时派生，避免与 attempts 数组不一致
 export class DispatchResult {
   readonly approvalId: string;
   readonly attempts: NotificationAttempt[];

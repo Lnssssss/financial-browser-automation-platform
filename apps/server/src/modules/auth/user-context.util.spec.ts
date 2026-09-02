@@ -9,7 +9,6 @@ import {
   requireDepartmentOperator,
 } from './user-context.util';
 
-// 逐条翻译自源项目 tests/unit/test_auth_dependencies.py（去掉 HTTP header 解析部分，
 // 那部分在 NestJS 里由 passport-jwt 负责）。只测 require_* 的鉴权语义。
 
 function ctx(

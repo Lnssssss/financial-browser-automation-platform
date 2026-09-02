@@ -2,7 +2,7 @@
 // 负责：初始计划创建 / 顺序执行子任务 / 失败检测与 replan / 断点续跑（跳过已完成）/
 // 审计回调集成。planner、executor 由 DI 注入；audit_callback、max_replans 作为配置项，
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ExecutorService } from './executor.service';
 import { PlannerService } from './planner.service';
 import {
@@ -27,6 +27,13 @@ export interface CoordinatorOptions {
   maxReplans?: number;
 }
 
+/// CoordinatorOptions 的注入 token。
+/// 为什么需要：CoordinatorService 进入 DI 图后（Stage 4 webeye executor-worker 消费任务），
+/// 构造函数第 3 参 `options: CoordinatorOptions` 是 interface 类型——TS 编译后擦除成 Object，
+/// NestJS 无法按类型解析（同 audit/notification 的坑）。故用 @Optional @Inject(token) 显式声明：
+/// 无 provider 时注入 undefined，构造函数回退默认值。
+export const COORDINATOR_OPTIONS = Symbol('COORDINATOR_OPTIONS');
+
 /// _handle_failure 的返回信号（内部控制流，不是领域状态，故保留字符串字面量联合）。
 type FailureOutcome = 'continued' | 'aborted' | 'replanned';
 
@@ -39,10 +46,10 @@ export class CoordinatorService {
   constructor(
     private readonly planner: PlannerService,
     private readonly executor: ExecutorService,
-    options: CoordinatorOptions = {},
+    @Optional() @Inject(COORDINATOR_OPTIONS) options?: CoordinatorOptions | null,
   ) {
-    this.auditCallback = options.auditCallback ?? null;
-    this.maxReplans = options.maxReplans ?? 3;
+    this.auditCallback = options?.auditCallback ?? null;
+    this.maxReplans = options?.maxReplans ?? 3;
   }
 
   /// 通过 Planner -> Executor 协调执行一个完整任务。

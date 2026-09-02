@@ -69,7 +69,14 @@ async function createWithTimeout(timeoutSeconds: number) {
     departmentId: deptId,
     riskLevel: 'high',
     riskReason: 'int test',
-    route: { approver_department_id: deptId, approver_role: 'APPROVER', notify_department_ids: [] },
+    route: {
+      requires_approval: true,
+      approver_department_id: deptId,
+      approver_role: 'APPROVER',
+      notify_department_ids: [],
+      notify_roles: [],
+      description: 'int test',
+    },
     timeoutOverride: timeoutSeconds,
   });
 }

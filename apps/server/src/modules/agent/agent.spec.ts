@@ -10,8 +10,7 @@ import { PlannerService } from './planner.service';
 import { ExecutorService, HandlerResult } from './executor.service';
 import { CoordinatorService } from './coordinator.service';
 
-// 逐条翻译自源项目 tests/unit/test_agent.py。
-// 作为 agent 模块的行为对齐基准：这些用例全绿 = TS 版行为与 Python 版一致。
+// 作为 agent 模块的行为对齐基准。
 
 // ============================================================
 // Schema tests

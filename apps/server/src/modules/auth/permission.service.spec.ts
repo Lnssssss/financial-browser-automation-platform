@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { PermissionService } from './permission.service';
 import { PermissionLevel, UserContext } from './permission.types';
 
-// 逐条翻译自源项目 tests/unit/test_permission_resolver.py。
 // 作为 auth 模块的行为对齐基准：这 24 个用例全绿 = TS 版行为与 Python 版一致。
 
 const ORG = 'o_demo_cmb';

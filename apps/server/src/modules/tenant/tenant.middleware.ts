@@ -4,10 +4,7 @@
 // 3. 解码企业 JWT 得用户上下文
 // 4. 构造 TenantContext（含可见范围）
 // 5. 在 ALS 作用域内跑完后续处理链，供查询过滤层读取
-//
-// 等价说明：源是 FastAPI BaseHTTPMiddleware.dispatch（set → try/call_next → finally reset）。
-// Nest 里做成 NestMiddleware，用 runWithTenantContext(ctx, () => next()) 包裹 next——
-// ALS 作用域自动在请求处理链结束后还原，无需手动 reset。
+
 
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';

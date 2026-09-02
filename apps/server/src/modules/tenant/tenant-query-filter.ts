@@ -3,20 +3,16 @@
 // - 受限：org AND (可见部门 OR 可见业务线)
 // - 受限且无任何可见部门/业务线：造一个永假条件 → 查不到任何数据
 //
-// 等价说明：源在 SQLAlchemy Query 上链式 .filter 追加 WHERE。Prisma 无查询事件钩子，
-// 故做成纯函数 buildTenantWhere(ctx) → where 对象，由调用方合并进 findMany({ where })。
-// 纯函数天然可测（对齐源把核心逻辑抽成 apply_tenant_filter 便于测试的意图）。
 
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from './tenant-context';
 import { getTenantContext } from './tenant-context';
 
 /// 永远查不到数据的哨兵组织 id——受限用户既无可见部门也无可见业务线时用它，
-/// 对齐源 `organization_id == "__no_access__"` 的不可能条件。
 export const NO_ACCESS_ORG_ID = '__no_access__';
 
 /// 由租户上下文构造 TaskExtension 的 where 条件。
-/// 传入 ctx=null（无上下文）返回空对象 {} —— 不追加任何过滤，对齐源「无上下文原样返回」。
+/// 传入 ctx=null（无上下文）返回空对象 {} 。
 export function buildTenantWhere(
   ctx: TenantContext | null,
 ): Prisma.TaskExtensionWhereInput {

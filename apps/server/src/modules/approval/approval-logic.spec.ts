@@ -3,7 +3,6 @@ import { hasHighAmount, detectAmounts, IndustryType, ALL_KEYWORDS } from './risk
 import { RiskDetectorService } from './risk-detector.service';
 import { ApprovalRoutingService, COMPLIANCE_DEPT_ID, RISK_MGMT_DEPT_ID } from './approval-routing.service';
 
-// 逐条翻译自源项目 tests/unit/test_approval.py 中风险识别 + 路由部分。
 // 作为 approval 纯逻辑三件套的行为对齐基准。
 
 // ============================================================

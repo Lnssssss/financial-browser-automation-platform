@@ -10,10 +10,11 @@ import { AuditModule } from './modules/audit/audit.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { TenantModule } from './modules/tenant/tenant.module';
+import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, UserModule, ApprovalModule, WorkflowModule, LlmModule, AuditModule, DashboardModule, NotificationModule, TenantModule],
+  imports: [PrismaModule, RedisModule, AuthModule, UserModule, ApprovalModule, WorkflowModule, LlmModule, AuditModule, DashboardModule, NotificationModule, TenantModule, DemoModule],
   controllers: [HealthController],
 })
 export class AppModule {}

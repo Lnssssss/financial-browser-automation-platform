@@ -9,7 +9,6 @@ import {
 import { ParamCryptoService, InvalidTokenError } from './param-crypto.service';
 import { validateParameters } from './workflow-validator';
 
-// 逐条翻译自源项目 tests/unit/test_workflows.py 的模板/crypto/validator 部分。
 // 作为 workflow 纯逻辑三件套的行为对齐基准。
 
 // ============================================================
