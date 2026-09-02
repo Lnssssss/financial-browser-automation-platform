@@ -4,13 +4,14 @@
 // 重试队列抽象成 RetryQueueClient 接口（interface-first + 优雅降级）：默认不接线（null），
 // 此时失败不入队，只在结果里如实计 0——与 dashboard cache 同一套「后端未接线也不 500」哲学。
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { NotificationChannelsService } from './notification-channels.service';
 import {
   renderWecomPayload,
   renderDingtalkPayload,
 } from './notification-templates';
 import { CHANNEL_WECOM, CHANNEL_DINGTALK } from './notification.types';
+import { NOTIFICATION_RETRY_QUEUE } from './notification-retry-queue';
 import type {
   ApprovalNotificationContext,
   WebhookConfig,
@@ -70,7 +71,13 @@ export class DispatchResult {
 export class NotificationDispatcherService {
   private readonly logger = new Logger(NotificationDispatcherService.name);
 
-  constructor(private readonly channels: NotificationChannelsService) {}
+  constructor(
+    private readonly channels: NotificationChannelsService,
+    // Stage 4：注入真实 Redis 重试队列（未接线时为 null，行为退化为「失败不入队、只如实计数」）。
+    @Optional()
+    @Inject(NOTIFICATION_RETRY_QUEUE)
+    private readonly retryQueue: RetryQueueClient | null = null,
+  ) {}
 
   /// 先试企业微信，失败再回退钉钉。返回 1~2 条尝试记录：
   /// - 主渠道成功即返回（不再试回退）；
@@ -130,11 +137,14 @@ export class NotificationDispatcherService {
 
   /// 向所有目标用户投递审批通知。每个用户走一次带回退的发送；
   /// 该用户全部渠道都失败、且接了 Redis，才入重试队列并计数。
+  /// redisClient 参数优先级高于注入的 retryQueue：显式传入（含显式 null）时用参数——
+  /// 保留测试注入假 Redis 的路径；不传（undefined）时回退到构造注入的生产队列。
   async dispatchNotifications(
     ctx: ApprovalNotificationContext,
     webhookConfigs: WebhookConfig[],
-    redisClient: RetryQueueClient | null = null,
+    redisClient?: RetryQueueClient | null,
   ): Promise<DispatchResult> {
+    const queue = redisClient !== undefined ? redisClient : this.retryQueue;
     const result = new DispatchResult(ctx.approvalId);
 
     for (const config of webhookConfigs) {
@@ -143,8 +153,8 @@ export class NotificationDispatcherService {
 
       // 该用户所有渠道都失败 → 入重试队列
       if (!attempts.some((a) => a.success)) {
-        if (redisClient !== null) {
-          await this.enqueueRetry(redisClient, ctx, config);
+        if (queue !== null && queue !== undefined) {
+          await this.enqueueRetry(queue, ctx, config);
           result.queuedForRetry += 1;
         }
       }

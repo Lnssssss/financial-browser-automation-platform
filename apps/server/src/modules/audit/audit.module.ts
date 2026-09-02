@@ -9,7 +9,16 @@ import { AuditStorageService } from './audit-storage.service';
 
 @Module({
   controllers: [AuditController],
-  providers: [AuditLoggerService, AuditQueryService, AuditStorageService],
+  providers: [
+    AuditLoggerService,
+    AuditQueryService,
+    // client 是 interface（DI 元数据擦除后成 Object，容器无法解析）→ 用工厂显式注入 null。
+    // Stage 4 接 MinIO/S3 时把 null 换成真实 client。同 dashboard-cache 的处理方式。
+    {
+      provide: AuditStorageService,
+      useFactory: () => new AuditStorageService(null),
+    },
+  ],
   exports: [AuditLoggerService, AuditQueryService, AuditStorageService],
 })
 export class AuditModule {}

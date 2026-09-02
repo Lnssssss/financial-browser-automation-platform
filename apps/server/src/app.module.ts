@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { ApprovalModule } from './modules/approval/approval.module';
@@ -12,7 +13,7 @@ import { TenantModule } from './modules/tenant/tenant.module';
 import { HealthController } from './health.controller';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UserModule, ApprovalModule, WorkflowModule, LlmModule, AuditModule, DashboardModule, NotificationModule, TenantModule],
+  imports: [PrismaModule, RedisModule, AuthModule, UserModule, ApprovalModule, WorkflowModule, LlmModule, AuditModule, DashboardModule, NotificationModule, TenantModule],
   controllers: [HealthController],
 })
 export class AppModule {}
